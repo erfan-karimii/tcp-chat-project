@@ -6,7 +6,6 @@ class ChatUser:
         self.client = client
         self.password = None
         self.role = None
-
         
     
     def change_password(self,old_password,new_passwod,new_password_2):
