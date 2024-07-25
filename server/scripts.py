@@ -11,4 +11,4 @@ def make_password(password):
 def generate_random_password():
     random_password = uuid.uuid4()
     random_hashed_password = make_password(random_password)
-    return random_password , random_hashed_password
+    return random_password, random_hashed_password
