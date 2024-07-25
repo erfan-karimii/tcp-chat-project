@@ -1,73 +1,74 @@
 import socket
 import threading
+from models import ChatUser
 
-
-# Connection Data
 HOST = "127.0.0.1"
 PORT = 55555
 
-# Starting Server
-SERVER = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-SERVER.bind((HOST, PORT))
-SERVER.listen()
-
 # Lists For Clients and Their Nicknames
-clients = []
-nicknames = []
+CLIENTS = []
+
 SUPER_USERS_LIST = {
     "erfan": "94aefb8be78b2b7c344d11d1ba8a79ef087eceb19150881f69460b8772753263"
 }
 
 
-def add_user(client, nickname):
-    # Request And Store Nickname
-    nicknames.append(nickname)
-    clients.append(client)
+class SocialMedia:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.bind((HOST, PORT))
+        self.server.listen()
 
-    # Print And Broadcast Nickname
-    print("Nickname is {}".format(nickname))
-    broadcast_for_others(client, "{} joined!".format(nickname).encode("ascii"))
+        print(f"server start and listion on {HOST}:{PORT}")
+        self.start_accepting_connection()
+
+    def start_accepting_connection(self):
+        while True:
+            # Accept Connection
+            client, address = self.server.accept()
+            user_pass = client.recv(1024).decode("ascii")
+            nickname, user_password_choice, password = user_pass.split("-")
+
+            print(f"{nickname} Connected to server with {str(address)}")
+
+            self.user = self.get_or_create_user(
+                client, nickname, password, user_password_choice
+            )
+            CLIENTS.append(self.user)
+            self.broadcast_for_others(
+                self.user, "{} joined!".format(nickname).encode("ascii")
+            )
+            thread = threading.Thread(target=self.handle, args=(self.user,))
+            thread.start()
+
+    def get_or_create_user(self, client, nickname, password, user_password_choice):
+        user = ChatUser(client, nickname, password)
+        # if not exists
+        user.choose_password(user_password_choice)
+        return user
+
+    @staticmethod
+    def broadcast_for_others(sender, message):
+        for user in CLIENTS:
+            if user != sender:
+                user.conn.send(message)
+
+    @staticmethod
+    def handle(user):
+        while True:
+            try:
+                message = user.conn.recv(1024)
+                SocialMedia.broadcast_for_others(user, message)
+            except:
+                user.conn.close()
+                SocialMedia.broadcast_for_others(
+                    user, f"{user.nickname} left!".encode("ascii")
+                )
+                CLIENTS.remove(user)
+                break
 
 
-# Sending Messages To All Connected Clients
-def broadcast_for_others(sender, message):
-    for client in clients:
-        if client != sender:
-            client.send(message)
-
-
-# Handling Messages From Clients
-def handle(client):
-    while True:
-        try:
-            # Broadcasting Messages
-            message = client.recv(1024)
-            broadcast_for_others(client, message)
-        except:
-            # Removing And Closing Clients
-            index = clients.index(client)
-            clients.remove(client)
-            client.close()
-            nickname = nicknames[index]
-            broadcast_for_others(client, "{} left!".format(nickname).encode("ascii"))
-            nicknames.remove(nickname)
-            break
-
-
-# Receiving / Listening Function
-def receive():
-    while True:
-        # Accept Connection
-        client, address = SERVER.accept()
-        nickname = client.recv(1024).decode("ascii")
-
-        print(f"{nickname} Connected to server with {str(address)}")
-
-        add_user(client, nickname)
-
-        # Start Handling Thread For Client
-        thread = threading.Thread(target=handle, args=(client,))
-        thread.start()
-
-
-receive()
+if __name__ == "__main__":
+    social_media = SocialMedia(HOST, PORT)
