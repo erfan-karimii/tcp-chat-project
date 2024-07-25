@@ -2,11 +2,7 @@ import socket
 import threading
 
 
-def send_nickname(client, nickname):
-    client.send(nickname.encode("ascii"))
-
-
-def receive(client):
+def receive():
     while True:
         try:
             message = client.recv(1024).decode("ascii")
@@ -17,7 +13,7 @@ def receive(client):
             break
 
 
-def write(client):
+def write():
     while True:
         try:
             msg = input()
@@ -30,14 +26,15 @@ def write(client):
 
 if __name__ == "__main__":
     nickname = input("Choose your nickname: ")
+    password = input("enter your password: ")
 
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("127.0.0.1", 55555))
+    user_pass = nickname + "-" + password
+    client.send(user_pass.encode("ascii"))
 
-    send_nickname(client, nickname)
-
-    receive_thread = threading.Thread(target=receive, args=(client,))
+    receive_thread = threading.Thread(target=receive)
     receive_thread.start()
 
-    write_thread = threading.Thread(target=write, args=(client,))
+    write_thread = threading.Thread(target=write)
     write_thread.start()
